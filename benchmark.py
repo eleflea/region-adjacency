@@ -38,7 +38,12 @@ def test():
     print(f'numpy time: {t_np: .6f}s\ntorch(cuda) time: {t_torch_cuda: .6f}s\nspeedup={t_np / t_torch_cuda: .3f}.')
     r_torch_cuda = r_torch_cuda.cpu().numpy()
     print(np.allclose(r_np, r_torch_cuda))
-    print(np.abs(r_np - r_torch_cuda).max())
+    diff = np.abs(r_np - r_torch_cuda)
+    rel_diff = diff / np.maximum(np.abs(r_np), 1e-8)
+    print(f'max abs error: {diff.max()}; rel abs error: {rel_diff.max()}')
+    mask = rel_diff > 10.
+    print(f'numpy: {r_np[mask][:10].tolist()}')
+    print(f'cuda: {r_torch_cuda[mask][:10].tolist()}')
 
 if __name__ == '__main__':
     test()
