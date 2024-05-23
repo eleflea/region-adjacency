@@ -41,7 +41,7 @@ def test():
     diff = np.abs(r_np - r_torch_cuda)
     rel_diff = diff / np.maximum(np.abs(r_np), 1e-8)
     print(f'max abs error: {diff.max()}; rel abs error: {rel_diff.max()}')
-    mask = rel_diff > 10.
+    mask = rel_diff > 0.5
     print(f'numpy: {r_np[mask][:10].tolist()}')
     print(f'cuda: {r_torch_cuda[mask][:10].tolist()}')
 
