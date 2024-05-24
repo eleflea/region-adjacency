@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 # from approx_adj_matrix import adj_matrix_numpy, adj_matrix_torch
-from adj_matrix import adj_matrix_numpy, adj_matrix_torch
+from adj_matrix import adj_matrix_numpy, adj_matrix_torch, adj_matrix_torch_cpp
 from profiler import Profiler
 
 
@@ -34,8 +34,11 @@ def to_numpy(t) -> _ndarray:
     raise TypeError(f'`{type(t)}` is neither `numpy.ndarray` nor `torch.Tensor`')
 
 
-def to_torch_cuda(t) -> _ndarray:
-    return torch.from_numpy(t).cuda()
+def to_torch(t, cuda=False) -> _ndarray:
+    t = torch.from_numpy(t)
+    if cuda:
+        return t.cuda()
+    return t
 
 
 def compare_results(expect, output, detail=True):
@@ -81,11 +84,14 @@ def test():
 
     segments, features = generate_inputs(segment_size, feature_size)
     args_np = (segments, features, sigma)
-    args_torch = (to_torch_cuda(segments), to_torch_cuda(features), sigma)
+    args_torch = (to_torch(segments), to_torch(features), sigma)
+    args_torch_cuda = (to_torch(segments, cuda=True), to_torch(features, cuda=True), sigma)
 
     cases = [
-        Case(func=adj_matrix_numpy, args=args_np, times=100, warmup=25, primary=True),
-        Case(func=adj_matrix_torch, args=args_torch, times=200, warmup=25, is_cuda=True),
+        Case(func=adj_matrix_numpy, name='numpy(cpu)', args=args_np, times=100, warmup=25, primary=True),
+        Case(func=adj_matrix_torch, name='torch(cpu)', args=args_torch, times=100, warmup=25),
+        Case(func=adj_matrix_torch, name='torch(gpu)', args=args_torch_cuda, times=200, warmup=20, is_cuda=True),
+        Case(func=adj_matrix_torch_cpp, name='torch-cpp(gpu)', args=args_torch_cuda, times=200, warmup=20, is_cuda=True),
     ]
     profilers: List[Profiler] = []
     expect_output = None
