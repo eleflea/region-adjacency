@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 # from approx_adj_matrix import adj_matrix_numpy, adj_matrix_torch
-from adj_matrix import adj_matrix_numpy, adj_matrix_torch, adj_matrix_torch_cpp
+from adj_matrix import adj_matrix_numpy, adj_matrix_torch, adj_matrix_torch_cpp, adj_matrix_torch_cpp_v2
 from profiler import Profiler
 
 
@@ -75,7 +75,7 @@ def timeit(fn, args, times=100, cuda=False):
 
 
 def test():
-    b, h, w = 8, 224, 224
+    b, h, w = 8, 1024, 1024
     n = 256
     c = 128
     sigma = 5
@@ -92,6 +92,7 @@ def test():
         Case(func=adj_matrix_torch, name='torch(cpu)', args=args_torch, times=100, warmup=25),
         Case(func=adj_matrix_torch, name='torch(gpu)', args=args_torch_cuda, times=200, warmup=20, is_cuda=True),
         Case(func=adj_matrix_torch_cpp, name='torch-cpp(gpu)', args=args_torch_cuda, times=200, warmup=20, is_cuda=True),
+        Case(func=adj_matrix_torch_cpp_v2, name='torch-cpp-v2(gpu)', args=args_torch_cuda, times=200, warmup=20, is_cuda=True),
     ]
     profilers: List[Profiler] = []
     expect_output = None
