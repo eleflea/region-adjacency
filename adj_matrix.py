@@ -5,7 +5,6 @@ from torch.utils.cpp_extension import load
 
 
 _adj_matrix_cpp = load(name='_adj_matrix_cpp', sources=['adj_matrix_cuda.cpp', 'adj_matrix_cuda_kernel.cu'])
-_adj_matrix_cpp_v2 = load(name='_adj_matrix_cpp', sources=['adj_matrix_cuda.cpp', 'adj_matrix_cuda_kernel_v2.cu'])
 
 _Tensor = torch.Tensor
 _ndarray = np.ndarray
@@ -115,7 +114,7 @@ def adj_matrix_torch(segments: _Tensor, features: _Tensor, sigma: float, connect
     return adj
 
 
-def adj_matrix_torch_cpp(segments: _Tensor, features: _Tensor, sigma: float):
+def adj_matrix_torch_cpp(segments: _Tensor, features: _Tensor, sigma: float, connectivity: int = 1):
     """
     Calculate the adjacency matrix from a graph.
 
@@ -127,27 +126,11 @@ def adj_matrix_torch_cpp(segments: _Tensor, features: _Tensor, sigma: float):
             A tensor represents features for each node.
             Where B is batch size; N is number of nodes; C is dimension of the feature.
         sigma (float): A parameter used to normalize the distance.
+        connectivity (int): The connectivity between pixels in segments.
+            For a 2D image, a connectivity of 1 corresponds to immediate neighbors up, down, left, and right,
+            while a connectivity of 2 also includes diagonal neighbors.
     Returns:
         A Tensor(B, N, N) represents the adjacency matrix.
     """
 
-    return _adj_matrix_cpp.forward(segments, features, sigma)
-
-
-def adj_matrix_torch_cpp_v2(segments: _Tensor, features: _Tensor, sigma: float):
-    """
-    Calculate the adjacency matrix from a graph.
-
-    Args:
-        segments (Tensor[B, H, W]):
-            A RAG (Region Adjacency Graph). Where B is batch size; H and W represent height and width of the graphs.
-            The label of the graphs should be a class index in the range [0, N).
-        features (Tensor[B, N, C]):
-            A tensor represents features for each node.
-            Where B is batch size; N is number of nodes; C is dimension of the feature.
-        sigma (float): A parameter used to normalize the distance.
-    Returns:
-        A Tensor(B, N, N) represents the adjacency matrix.
-    """
-
-    return _adj_matrix_cpp_v2.forward(segments, features, sigma)
+    return _adj_matrix_cpp.forward(segments, features, sigma, connectivity)

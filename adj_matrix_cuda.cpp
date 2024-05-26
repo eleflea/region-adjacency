@@ -6,13 +6,15 @@
   CHECK_CUDA(x);       \
   CHECK_CONTIGUOUS(x)
 
-torch::Tensor adj_matrix_cuda_forward(torch::Tensor segments, torch::Tensor features, float sigma);
+torch::Tensor adj_matrix_cuda_forward(const torch::Tensor segments, const torch::Tensor features, const float sigma,
+                                      const int connectivity);
 
-torch::Tensor adj_matrix_forward(torch::Tensor segments, torch::Tensor features, float sigma) {
+torch::Tensor adj_matrix_forward(const torch::Tensor segments, const torch::Tensor features, const float sigma,
+                                 const int connectivity = 1) {
   CHECK_INPUT(segments);
   CHECK_INPUT(features);
 
-  return adj_matrix_cuda_forward(segments, features, sigma);
+  return adj_matrix_cuda_forward(segments, features, sigma, connectivity);
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) { m.def("forward", &adj_matrix_forward, "adj matrix forward (CUDA)"); }

@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 # from approx_adj_matrix import adj_matrix_numpy, adj_matrix_torch
-from adj_matrix import adj_matrix_numpy, adj_matrix_torch, adj_matrix_torch_cpp, adj_matrix_torch_cpp_v2
+from adj_matrix import adj_matrix_numpy, adj_matrix_torch, adj_matrix_torch_cpp
 from profiler import Profiler
 
 
@@ -75,24 +75,24 @@ def timeit(fn, args, times=100, cuda=False):
 
 
 def test():
-    b, h, w = 8, 1024, 1024
+    b, h, w = 8, 224, 224
     n = 256
     c = 128
     sigma = 5
+    connectivity = 2
     segment_size = (b, h, w)
     feature_size = (b, n, c)
 
     segments, features = generate_inputs(segment_size, feature_size)
-    args_np = (segments, features, sigma)
-    args_torch = (to_torch(segments), to_torch(features), sigma)
-    args_torch_cuda = (to_torch(segments, cuda=True), to_torch(features, cuda=True), sigma)
+    args_np = (segments, features, sigma, connectivity)
+    args_torch = (to_torch(segments), to_torch(features), sigma, connectivity)
+    args_torch_cuda = (to_torch(segments, cuda=True), to_torch(features, cuda=True), sigma, connectivity)
 
     cases = [
         Case(func=adj_matrix_numpy, name='numpy(cpu)', args=args_np, times=100, warmup=25, primary=True),
         Case(func=adj_matrix_torch, name='torch(cpu)', args=args_torch, times=100, warmup=25),
         Case(func=adj_matrix_torch, name='torch(gpu)', args=args_torch_cuda, times=200, warmup=20, is_cuda=True),
         Case(func=adj_matrix_torch_cpp, name='torch-cpp(gpu)', args=args_torch_cuda, times=200, warmup=20, is_cuda=True),
-        Case(func=adj_matrix_torch_cpp_v2, name='torch-cpp-v2(gpu)', args=args_torch_cuda, times=200, warmup=20, is_cuda=True),
     ]
     profilers: List[Profiler] = []
     expect_output = None
