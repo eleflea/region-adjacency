@@ -5,7 +5,7 @@ from typing import Callable, Optional, Sequence, List
 import numpy as np
 import torch
 
-# from approx_adj_matrix import adj_matrix_numpy, adj_matrix_torch
+import approx_adj_matrix as aam
 from adj_matrix import adj_matrix_numpy, adj_matrix_torch, adj_matrix_torch_cpp
 from profiler import Profiler
 
@@ -24,6 +24,10 @@ class Case:
     name: Optional[str] = None
     is_cuda: bool = False
     primary: bool = False
+
+    def __post_init__(self):
+        if self.name is None:
+            self.name = self.func.__name__
 
 
 def to_numpy(t) -> _ndarray:
@@ -61,18 +65,25 @@ def generate_inputs(segment_size, feature_size):
     features = np.random.randn(*feature_size).astype(np.float32)
     return segments, features
 
-def timeit(fn, args, times=100, cuda=False):
-    for _ in range(20):
-        fn(*args)
-    if cuda:
-        torch.cuda.synchronize()
-    start = time.time()
-    for _ in range(times):
-        fn(*args)
-    if cuda:
-        torch.cuda.synchronize()
-    return (time.time() - start) / times, fn(*args)
+def run_cases(cases):
+    profilers: List[Profiler] = []
+    expect_output = None
 
+    for case in cases:
+        p = Profiler(case.func, case.name)
+        print(f'running {p.name}...', end=' ', flush=True)
+        p.execute(case.args, case.times, case.warmup, case.is_cuda)
+        profilers.append(p)
+        if case.primary and expect_output is None:
+            expect_output = p.output
+        print('done', flush=True)
+    
+    for p in profilers:
+        stat = p.statistic()
+        print(f"'{p.name}' execute statistics:")
+        print(f"\tavg = {stat['avg']:.3f} ms, min/max/std = {stat['min']:.3f}/{stat['max']:.3f}/{stat['std']:.3f} ms")
+        acc_status = 'PASS' if compare_results(expect_output, p.output) else 'FAIL'
+        print(f'\tacc = {acc_status}')
 
 def test():
     b, h, w = 8, 224, 224
@@ -94,21 +105,14 @@ def test():
         Case(func=adj_matrix_torch, name='torch(gpu)', args=args_torch_cuda, times=200, warmup=20, is_cuda=True),
         Case(func=adj_matrix_torch_cpp, name='torch-cpp(gpu)', args=args_torch_cuda, times=200, warmup=20, is_cuda=True),
     ]
-    profilers: List[Profiler] = []
-    expect_output = None
-    for case in cases:
-        p = Profiler(case.func, case.name)
-        print(f'running {p.name}...', end=' ', flush=True)
-        p.execute(case.args, case.times, case.warmup, case.is_cuda)
-        profilers.append(p)
-        if case.primary and expect_output is None:
-            expect_output = p.output
-        print('done', flush=True)
-    
-    for p in profilers:
-        p.summary()
-        acc_status = 'PASS' if compare_results(expect_output, p.output) else 'FAIL'
-        print(f'\tacc = {acc_status}')
+    run_cases(cases)
+
+    cases = [
+        Case(func=aam.adj_matrix_numpy, name='approx-numpy(cpu)', args=args_np[:-1], times=20, warmup=5, primary=True),
+        Case(func=aam.adj_matrix_torch, name='approx-torch(cpu)', args=args_torch[:-1], times=100, warmup=20),
+        Case(func=aam.adj_matrix_torch, name='approx-torch(gpu)', args=args_torch_cuda[:-1], times=50, warmup=20, is_cuda=True),
+    ]
+    run_cases(cases)
 
 
 if __name__ == '__main__':

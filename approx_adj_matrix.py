@@ -90,18 +90,5 @@ def adj_matrix_torch(segments: _Tensor, features: _Tensor, sigma: float):
     # calc the distances based on features
     mask = left_mix_indexes != right_mix_indexes
     distances = torch.exp(-(left_mix_features - right_mix_features).pow(2).sum(-1) / sigma ** 2)
-    adj.view(b, -1)[batch_indexes, n_indexes] = mask * distances
+    adj.view(b, -1)[batch_indexes.squeeze(-1), n_indexes] = mask * distances
     return adj
-
-
-if __name__ == '__main__':
-    seg = torch.as_tensor([
-        [0, 0, 0, 1],
-        [0, 1, 1, 1],
-        [2, 2, 3, 3],
-        [2, 2, 3, 3]
-    ], dtype=torch.int32)
-    features = torch.randn(1, 6, 5)
-    adj_torch = adj_matrix_torch(seg.view(1, 4, 4), features, 5).numpy()
-    adj_np = adj_matrix_numpy(seg.squeeze(0).numpy(), features.squeeze(0).numpy(), 5, 6)
-    print(np.allclose(adj_np, adj_torch))
