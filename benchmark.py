@@ -4,11 +4,11 @@ from typing import Callable, Optional, Sequence, List
 import numpy as np
 import torch
 
-from adj_matrix import (
-    adj_matrix_numpy,
-    adj_matrix_numpy_loop,
-    adj_matrix_torch,
-    adj_matrix_torch_cpp,
+from region_adjacency import (
+    region_adjacency_numpy,
+    region_adjacency_numpy_loop,
+    region_adjacency_torch,
+    region_adjacency_torch_cpp,
 )
 from profiler import Profiler
 
@@ -64,10 +64,9 @@ def compare_results(expect, output, detail=True):
     return all_close
 
 
-def generate_inputs(segment_size, feature_size):
-    segments = np.random.randint(feature_size[1], size=segment_size, dtype=np.int64)
-    features = np.random.randn(*feature_size).astype(np.float32)
-    return segments, features
+def generate_inputs(segment_size, num_labels):
+    segments = np.random.randint(num_labels, size=segment_size, dtype=np.int64)
+    return segments
 
 
 def run_cases(cases):
@@ -89,32 +88,28 @@ def run_cases(cases):
         print(
             f"\tavg = {stat['avg']:.3f} ms, min/max/std = {stat['min']:.3f}/{stat['max']:.3f}/{stat['std']:.3f} ms"
         )
-        acc_status = "PASS" if compare_results(expect_output, p.output) else "FAIL"
+        acc_status = "PASS" if expect_output is None or compare_results(expect_output, p.output) else "FAIL"
         print(f"\tacc = {acc_status}")
 
 
 def test():
     b, h, w = 8, 224, 224
-    n = 256
-    c = 128
-    sigma = 5
+    num_labels = 256
     connectivity = 2
     segment_size = (b, h, w)
-    feature_size = (b, n, c)
 
-    segments, features = generate_inputs(segment_size, feature_size)
-    args_np = (segments, features, sigma, connectivity)
-    args_torch = (to_torch(segments), to_torch(features), sigma, connectivity)
+    segments = generate_inputs(segment_size, num_labels)
+    args_np = (segments, num_labels, connectivity)
+    args_torch = (to_torch(segments), num_labels, connectivity)
     args_torch_cuda = (
         to_torch(segments, cuda=True),
-        to_torch(features, cuda=True),
-        sigma,
+        num_labels,
         connectivity,
     )
 
     cases = [
         Case(
-            func=adj_matrix_numpy_loop,
+            func=region_adjacency_numpy_loop,
             name="numpy-loop(cpu)",
             args=args_np,
             times=5,
@@ -122,17 +117,17 @@ def test():
             primary=True,
         ),
         Case(
-            func=adj_matrix_numpy, name="numpy(cpu)", args=args_np, times=100, warmup=25
+            func=region_adjacency_numpy, name="numpy(cpu)", args=args_np, times=100, warmup=25
         ),
         Case(
-            func=adj_matrix_torch,
+            func=region_adjacency_torch,
             name="torch(cpu)",
             args=args_torch,
             times=100,
             warmup=25,
         ),
         Case(
-            func=adj_matrix_torch,
+            func=region_adjacency_torch,
             name="torch(gpu)",
             args=args_torch_cuda,
             times=200,
@@ -140,7 +135,7 @@ def test():
             is_cuda=True,
         ),
         Case(
-            func=adj_matrix_torch_cpp,
+            func=region_adjacency_torch_cpp,
             name="torch-cpp(gpu)",
             args=args_torch_cuda,
             times=200,

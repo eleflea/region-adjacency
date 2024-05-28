@@ -1,19 +1,21 @@
+from typing import Optional
 import numpy as np
 import torch
 from torch.nn import functional as F
 from torch.utils.cpp_extension import load
 
 
-_adj_matrix_cpp = load(
-    name="_adj_matrix_cpp", sources=["adj_matrix_cuda.cpp", "adj_matrix_cuda_kernel.cu"]
+_region_adjacency_cpp = load(
+    name="_region_adjacency_cpp",
+    sources=["region_adjacency_cuda.cpp", "region_adjacency_cuda_kernel.cu"],
 )
 
 _Tensor = torch.Tensor
 _ndarray = np.ndarray
 
 
-def adj_matrix_numpy_loop(
-    segments: _ndarray, features: _ndarray, sigma: float, connectivity: int = 1
+def region_adjacency_numpy_loop(
+    segments: _ndarray, num_labels: Optional[int] = None, connectivity: int = 1
 ):
     """
     Calculate the adjacency matrix from a graph.
@@ -22,11 +24,8 @@ def adj_matrix_numpy_loop(
         segments (ndarray[B, H, W]):
             A RAG (Region Adjacency Graph). Where B is batch size; H and W represent height and width of the graphs.
             The label of the graphs should be a class index in the range [0, N).
-        features (ndarray[B, N, C]):
-            A ndarray represents features for each node.
-            Where B is batch size; N is number of nodes; C is dimension of the feature.
-        sigma (float): A parameter used to normalize the distance.
-        connectivity (int): The connectivity between pixels in segments.
+        num_labels (optional, int): The number of labels.
+        connectivity (optional, int): The connectivity between pixels in segments.
             For a 2D image, a connectivity of 1 corresponds to immediate neighbors up, down, left, and right,
             while a connectivity of 2 also includes diagonal neighbors.
     Returns:
@@ -41,8 +40,8 @@ def adj_matrix_numpy_loop(
     connect = _4_connect if connectivity == 1 else _8_connect
 
     b, h, w = segments.shape
-    n = features.shape[1]
-    adj = np.zeros([b, n, n], dtype=np.float32)
+    n = np.max(segments).astype(np.int64) + 1 if num_labels is None else num_labels
+    adj = np.zeros([b, n, n], dtype=segments.dtype)
 
     for i in range(b):
         for y in range(h):
@@ -57,17 +56,13 @@ def adj_matrix_numpy_loop(
                     if other_v == v:
                         continue
 
-                    diss = np.exp(
-                        -np.sum(np.square(features[i, v] - features[i, other_v]))
-                        / sigma**2
-                    )
-                    adj[i, v, other_v] = adj[i, other_v, v] = diss
+                    adj[i, v, other_v] = adj[i, other_v, v] = 1
 
     return adj
 
 
-def adj_matrix_numpy(
-    segments: _ndarray, features: _ndarray, sigma: float, connectivity: int = 1
+def region_adjacency_numpy(
+    segments: _ndarray, num_labels: Optional[int] = None, connectivity: int = 1
 ):
     """
     Calculate the adjacency matrix from a graph.
@@ -76,11 +71,8 @@ def adj_matrix_numpy(
         segments (ndarray[B, H, W]):
             A RAG (Region Adjacency Graph). Where B is batch size; H and W represent height and width of the graphs.
             The label of the graphs should be a class index in the range [0, N).
-        features (ndarray[B, N, C]):
-            A ndarray represents features for each node.
-            Where B is batch size; N is number of nodes; C is dimension of the feature.
-        sigma (float): A parameter used to normalize the distance.
-        connectivity (int): The connectivity between pixels in segments.
+        num_labels (optional, int): The number of labels.
+        connectivity (optional, int): The connectivity between pixels in segments.
             For a 2D image, a connectivity of 1 corresponds to immediate neighbors up, down, left, and right,
             while a connectivity of 2 also includes diagonal neighbors.
     Returns:
@@ -98,8 +90,8 @@ def adj_matrix_numpy(
     connect = _4_connect if connectivity == 1 else _8_connect
 
     b, h, w = segments.shape
-    n = features.shape[1]
-    adj = np.zeros([b, n, n], dtype=np.float32)
+    n = np.max(segments).astype(np.int64) + 1 if num_labels is None else num_labels
+    adj = np.zeros([b, n, n], dtype=segments.dtype)
 
     h_i = np.arange(h, dtype=np.int64)
     w_i = np.arange(w, dtype=np.int64)
@@ -116,19 +108,11 @@ def adj_matrix_numpy(
     adj[b_i, neighbor_vals, vals] = is_diff
     adj[b_i, vals, neighbor_vals] = is_diff
 
-    f_square = np.sum(features**2, axis=-1)
-    dis = (
-        f_square[:, None, ...]
-        + f_square[..., None]
-        - 2 * features @ np.transpose(features, (0, 2, 1))
-    )
-    adj *= np.exp(-dis / sigma**2)
-
     return adj
 
 
-def adj_matrix_torch(
-    segments: _Tensor, features: _Tensor, sigma: float, connectivity: int = 1
+def region_adjacency_torch(
+    segments: _Tensor, num_labels: Optional[int] = None, connectivity: int = 1
 ):
     """
     Calculate the adjacency matrix from a graph.
@@ -137,10 +121,7 @@ def adj_matrix_torch(
         segments (ndarray[B, H, W]):
             A RAG (Region Adjacency Graph). Where B is batch size; H and W represent height and width of the graphs.
             The label of the graphs should be a class index in the range [0, N).
-        features (ndarray[B, N, C]):
-            A ndarray represents features for each node.
-            Where B is batch size; N is number of nodes; C is dimension of the feature.
-        sigma (float): A parameter used to normalize the distance.
+        num_labels (optional, int): The number of labels.
         connectivity (int): The connectivity between pixels in segments.
             For a 2D image, a connectivity of 1 corresponds to immediate neighbors up, down, left, and right,
             while a connectivity of 2 also includes diagonal neighbors.
@@ -159,8 +140,8 @@ def adj_matrix_torch(
     connect = _4_connect if connectivity == 1 else _8_connect
 
     b, h, w = segments.shape
-    n = features.shape[1]
-    adj = torch.zeros(b, n, n, dtype=torch.float32, device=segments.device)
+    n = segments.max().long() + 1 if num_labels is None else num_labels
+    adj = torch.zeros(b, n, n, dtype=segments.dtype, device=segments.device)
 
     h_i = torch.arange(h, dtype=torch.int64)
     w_i = torch.arange(w, dtype=torch.int64)
@@ -173,23 +154,15 @@ def adj_matrix_torch(
     b_i = torch.arange(b, dtype=torch.int64).view(b, 1, 1, 1)
     neighbor_vals = segments[b_i, ny_i, nx_i]  # (B, H, W, 8)
     vals = segments.unsqueeze(-1)
-    is_diff = (neighbor_vals != vals).float()
+    is_diff = (neighbor_vals != vals).to(segments.dtype)
     adj[b_i, neighbor_vals, vals] = is_diff
     adj[b_i, vals, neighbor_vals] = is_diff
-
-    f_square = features.pow(2).sum(-1)
-    distances = (
-        f_square.unsqueeze(-1)
-        + f_square.unsqueeze(1)
-        - 2 * features.bmm(features.transpose(-2, -1))
-    )
-    adj.mul_(distances.div(-sigma * sigma).exp())
 
     return adj
 
 
-def adj_matrix_torch_cpp(
-    segments: _Tensor, features: _Tensor, sigma: float, connectivity: int = 1
+def region_adjacency_torch_cpp(
+    segments: _Tensor, num_labels: Optional[int] = None, connectivity: int = 1
 ):
     """
     Calculate the adjacency matrix from a graph.
@@ -198,10 +171,7 @@ def adj_matrix_torch_cpp(
         segments (Tensor[B, H, W]):
             A RAG (Region Adjacency Graph). Where B is batch size; H and W represent height and width of the graphs.
             The label of the graphs should be a class index in the range [0, N).
-        features (Tensor[B, N, C]):
-            A tensor represents features for each node.
-            Where B is batch size; N is number of nodes; C is dimension of the feature.
-        sigma (float): A parameter used to normalize the distance.
+        num_labels (optional, int): The number of labels.
         connectivity (int): The connectivity between pixels in segments.
             For a 2D image, a connectivity of 1 corresponds to immediate neighbors up, down, left, and right,
             while a connectivity of 2 also includes diagonal neighbors.
@@ -209,4 +179,7 @@ def adj_matrix_torch_cpp(
         A Tensor(B, N, N) represents the adjacency matrix.
     """
 
-    return _adj_matrix_cpp.forward(segments, features, sigma, connectivity)
+    if num_labels is None:
+        num_labels = 0
+
+    return _region_adjacency_cpp.forward(segments, num_labels, connectivity)
