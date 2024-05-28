@@ -15,21 +15,23 @@ _ndarray = np.ndarray
 
 
 def region_adjacency_numpy_loop(
-    segments: _ndarray, num_labels: Optional[int] = None, connectivity: int = 1
-):
+    labelled_imgs: _ndarray, num_labels: Optional[int] = None, connectivity: int = 1
+) -> _ndarray:
     """
-    Calculate the adjacency matrix from a graph.
+    Calculate the region adjacency matrices from labelled images.
 
     Args:
-        segments (ndarray[B, H, W]):
-            A RAG (Region Adjacency Graph). Where B is batch size; H and W represent height and width of the graphs.
-            The label of the graphs should be a class index in the range [0, N).
-        num_labels (optional, int): The number of labels.
-        connectivity (optional, int): The connectivity between pixels in segments.
+        labelled_imgs (ndarray[B, H, W]):
+            labelled images, where each pixel is assigned the integer label of the region it belongs to.
+            Where B is batch size; H and W represent height and width of the images.
+            The labels of the images should be a integer class index in the range [0, N).
+        num_labels (int, optional): The number of labels, which is equals to N.
+            If it is `None`, the number of labels will be the maximum of `labelled_imgs`. Default: None.
+        connectivity (int, optional): The connectivity between pixels in labelled images.
             For a 2D image, a connectivity of 1 corresponds to immediate neighbors up, down, left, and right,
-            while a connectivity of 2 also includes diagonal neighbors.
+            while a connectivity of 2 also includes diagonal neighbors. Default: 1.
     Returns:
-        A ndarray(B, N, N) represents the adjacency matrix.
+        A ndarray(B, N, N) represents the region adjacency matrices.
     """
 
     if connectivity not in {1, 2}:
@@ -39,9 +41,9 @@ def region_adjacency_numpy_loop(
     _8_connect = [(-1, 0), (-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1)]
     connect = _4_connect if connectivity == 1 else _8_connect
 
-    b, h, w = segments.shape
-    n = np.max(segments).astype(np.int64) + 1 if num_labels is None else num_labels
-    adj = np.zeros([b, n, n], dtype=segments.dtype)
+    b, h, w = labelled_imgs.shape
+    n = np.max(labelled_imgs).astype(np.int64) + 1 if num_labels is None else num_labels
+    adj = np.zeros([b, n, n], dtype=labelled_imgs.dtype)
 
     for i in range(b):
         for y in range(h):
@@ -51,8 +53,8 @@ def region_adjacency_numpy_loop(
                     other_x = d_x + x
                     if not (0 <= other_y < h and 0 <= other_x < w):
                         continue
-                    other_v = segments[i, other_y, other_x]
-                    v = segments[i, y, x]
+                    other_v = labelled_imgs[i, other_y, other_x]
+                    v = labelled_imgs[i, y, x]
                     if other_v == v:
                         continue
 
@@ -62,21 +64,23 @@ def region_adjacency_numpy_loop(
 
 
 def region_adjacency_numpy(
-    segments: _ndarray, num_labels: Optional[int] = None, connectivity: int = 1
-):
+    labelled_imgs: _ndarray, num_labels: Optional[int] = None, connectivity: int = 1
+) -> _ndarray:
     """
-    Calculate the adjacency matrix from a graph.
+    Calculate the region adjacency matrices from labelled images.
 
     Args:
-        segments (ndarray[B, H, W]):
-            A RAG (Region Adjacency Graph). Where B is batch size; H and W represent height and width of the graphs.
-            The label of the graphs should be a class index in the range [0, N).
-        num_labels (optional, int): The number of labels.
-        connectivity (optional, int): The connectivity between pixels in segments.
+        labelled_imgs (ndarray[B, H, W]):
+            labelled images, where each pixel is assigned the integer label of the region it belongs to.
+            Where B is batch size; H and W represent height and width of the images.
+            The labels of the images should be a integer class index in the range [0, N).
+        num_labels (int, optional): The number of labels, which is equals to N.
+            If it is `None`, the number of labels will be the maximum of `labelled_imgs`. Default: None.
+        connectivity (int, optional): The connectivity between pixels in labelled images.
             For a 2D image, a connectivity of 1 corresponds to immediate neighbors up, down, left, and right,
-            while a connectivity of 2 also includes diagonal neighbors.
+            while a connectivity of 2 also includes diagonal neighbors. Default: 1.
     Returns:
-        A ndarray(B, N, N) represents the adjacency matrix.
+        A ndarray(B, N, N) represents the region adjacency matrices.
     """
 
     if connectivity not in {1, 2}:
@@ -89,9 +93,9 @@ def region_adjacency_numpy(
     )
     connect = _4_connect if connectivity == 1 else _8_connect
 
-    b, h, w = segments.shape
-    n = np.max(segments).astype(np.int64) + 1 if num_labels is None else num_labels
-    adj = np.zeros([b, n, n], dtype=segments.dtype)
+    b, h, w = labelled_imgs.shape
+    n = np.max(labelled_imgs).astype(np.int64) + 1 if num_labels is None else num_labels
+    adj = np.zeros([b, n, n], dtype=labelled_imgs.dtype)
 
     h_i = np.arange(h, dtype=np.int64)
     w_i = np.arange(w, dtype=np.int64)
@@ -102,8 +106,8 @@ def region_adjacency_numpy(
     np.clip(ny_i, 0, h - 1, out=ny_i)
     np.clip(nx_i, 0, w - 1, out=nx_i)
     b_i = np.arange(b, dtype=np.int64).reshape(b, 1, 1, 1)
-    neighbor_vals = segments[b_i, ny_i, nx_i]  # (B, H, W, 8)
-    vals = segments[..., None]
+    neighbor_vals = labelled_imgs[b_i, ny_i, nx_i]  # (B, H, W, 8)
+    vals = labelled_imgs[..., None]
     is_diff = neighbor_vals != vals
     adj[b_i, neighbor_vals, vals] = is_diff
     adj[b_i, vals, neighbor_vals] = is_diff
@@ -112,21 +116,23 @@ def region_adjacency_numpy(
 
 
 def region_adjacency_torch(
-    segments: _Tensor, num_labels: Optional[int] = None, connectivity: int = 1
-):
+    labelled_imgs: _Tensor, num_labels: Optional[int] = None, connectivity: int = 1
+) -> _Tensor:
     """
-    Calculate the adjacency matrix from a graph.
+    Calculate the region adjacency matrices from labelled images.
 
     Args:
-        segments (ndarray[B, H, W]):
-            A RAG (Region Adjacency Graph). Where B is batch size; H and W represent height and width of the graphs.
-            The label of the graphs should be a class index in the range [0, N).
-        num_labels (optional, int): The number of labels.
-        connectivity (int): The connectivity between pixels in segments.
+        labelled_imgs (Tensor[B, H, W]):
+            labelled images, where each pixel is assigned the integer label of the region it belongs to.
+            Where B is batch size; H and W represent height and width of the images.
+            The labels of the images should be a integer class index in the range [0, N).
+        num_labels (int, optional): The number of labels, which is equals to N.
+            If it is `None`, the number of labels will be the maximum of `labelled_imgs`. Default: None.
+        connectivity (int, optional): The connectivity between pixels in labelled images.
             For a 2D image, a connectivity of 1 corresponds to immediate neighbors up, down, left, and right,
-            while a connectivity of 2 also includes diagonal neighbors.
+            while a connectivity of 2 also includes diagonal neighbors. Default: 1.
     Returns:
-        A ndarray(B, N, N) represents the adjacency matrix.
+        A Tensor(B, N, N) represents the region adjacency matrices.
     """
 
     if connectivity not in {1, 2}:
@@ -139,9 +145,9 @@ def region_adjacency_torch(
     )
     connect = _4_connect if connectivity == 1 else _8_connect
 
-    b, h, w = segments.shape
-    n = segments.max().long() + 1 if num_labels is None else num_labels
-    adj = torch.zeros(b, n, n, dtype=segments.dtype, device=segments.device)
+    b, h, w = labelled_imgs.shape
+    n = labelled_imgs.max().long() + 1 if num_labels is None else num_labels
+    adj = torch.zeros(b, n, n, dtype=labelled_imgs.dtype, device=labelled_imgs.device)
 
     h_i = torch.arange(h, dtype=torch.int64)
     w_i = torch.arange(w, dtype=torch.int64)
@@ -152,9 +158,9 @@ def region_adjacency_torch(
     ny_i.clamp_(0, h - 1)
     nx_i.clamp_(0, w - 1)
     b_i = torch.arange(b, dtype=torch.int64).view(b, 1, 1, 1)
-    neighbor_vals = segments[b_i, ny_i, nx_i]  # (B, H, W, 8)
-    vals = segments.unsqueeze(-1)
-    is_diff = (neighbor_vals != vals).to(segments.dtype)
+    neighbor_vals = labelled_imgs[b_i, ny_i, nx_i]  # (B, H, W, 8)
+    vals = labelled_imgs.unsqueeze(-1)
+    is_diff = (neighbor_vals != vals).to(labelled_imgs.dtype)
     adj[b_i, neighbor_vals, vals] = is_diff
     adj[b_i, vals, neighbor_vals] = is_diff
 
@@ -162,24 +168,26 @@ def region_adjacency_torch(
 
 
 def region_adjacency_torch_cpp(
-    segments: _Tensor, num_labels: Optional[int] = None, connectivity: int = 1
-):
+    labelled_imgs: _Tensor, num_labels: Optional[int] = None, connectivity: int = 1
+) -> _Tensor:
     """
-    Calculate the adjacency matrix from a graph.
+    Calculate the region adjacency matrices from labelled images.
 
     Args:
-        segments (Tensor[B, H, W]):
-            A RAG (Region Adjacency Graph). Where B is batch size; H and W represent height and width of the graphs.
-            The label of the graphs should be a class index in the range [0, N).
-        num_labels (optional, int): The number of labels.
-        connectivity (int): The connectivity between pixels in segments.
+        labelled_imgs (Tensor[B, H, W]):
+            labelled images, where each pixel is assigned the integer label of the region it belongs to.
+            Where B is batch size; H and W represent height and width of the images.
+            The labels of the images should be a integer class index in the range [0, N).
+        num_labels (int, optional): The number of labels, which is equals to N.
+            If it is `None`, the number of labels will be the maximum of `labelled_imgs`. Default: None.
+        connectivity (int, optional): The connectivity between pixels in labelled images.
             For a 2D image, a connectivity of 1 corresponds to immediate neighbors up, down, left, and right,
-            while a connectivity of 2 also includes diagonal neighbors.
+            while a connectivity of 2 also includes diagonal neighbors. Default: 1.
     Returns:
-        A Tensor(B, N, N) represents the adjacency matrix.
+        A Tensor(B, N, N) represents the region adjacency matrices.
     """
 
     if num_labels is None:
         num_labels = 0
 
-    return _region_adjacency_cpp.forward(segments, num_labels, connectivity)
+    return _region_adjacency_cpp.forward(labelled_imgs, num_labels, connectivity)

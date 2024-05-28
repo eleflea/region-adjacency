@@ -65,8 +65,8 @@ def compare_results(expect, output, detail=True):
 
 
 def generate_inputs(segment_size, num_labels):
-    segments = np.random.randint(num_labels, size=segment_size, dtype=np.int64)
-    return segments
+    labelled_imgs = np.random.randint(num_labels, size=segment_size, dtype=np.int64)
+    return labelled_imgs
 
 
 def run_cases(cases):
@@ -98,11 +98,11 @@ def test():
     connectivity = 2
     segment_size = (b, h, w)
 
-    segments = generate_inputs(segment_size, num_labels)
-    args_np = (segments, num_labels, connectivity)
-    args_torch = (to_torch(segments), num_labels, connectivity)
+    labelled_imgs = generate_inputs(segment_size, num_labels)
+    args_np = (labelled_imgs, num_labels, connectivity)
+    args_torch = (to_torch(labelled_imgs), num_labels, connectivity)
     args_torch_cuda = (
-        to_torch(segments, cuda=True),
+        to_torch(labelled_imgs, cuda=True),
         num_labels,
         connectivity,
     )

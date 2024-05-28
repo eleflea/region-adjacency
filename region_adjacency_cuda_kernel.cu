@@ -4,7 +4,7 @@
 #include <cuda_runtime.h>
 
 template <typename scalar_t>
-__global__ void region_adjacency_cuda_forward_kernel(const int64_t *__restrict__ segments,
+__global__ void region_adjacency_cuda_forward_kernel(const int64_t *__restrict__ labelled_imgs,
                                                      scalar_t *__restrict__ output_adj, const size_t label_size,
                                                      const int neighbor_count, const int height, const int width) {
   constexpr scalar_t one = 1;
@@ -68,8 +68,8 @@ __global__ void region_adjacency_cuda_forward_kernel(const int64_t *__restrict__
         break;
     }
 
-    const auto v = segments[index];
-    if (const auto nv = segments[other_i]; nv != v) {
+    const auto v = labelled_imgs[index];
+    if (const auto nv = labelled_imgs[other_i]; nv != v) {
       const auto t = blockIdx.x * label_size;
       output_adj[(t + v) * label_size + nv] = one;
       output_adj[(t + nv) * label_size + v] = one;
@@ -77,21 +77,21 @@ __global__ void region_adjacency_cuda_forward_kernel(const int64_t *__restrict__
   }
 }
 
-torch::Tensor region_adjacency_cuda_forward(const torch::Tensor segments, const int num_labels,
+torch::Tensor region_adjacency_cuda_forward(const torch::Tensor labelled_imgs, const int num_labels,
                                             const int connectivity) {
-  const auto batch_size = segments.size(0);
-  const int height = segments.size(1);
-  const int width = segments.size(2);
-  const size_t label_size = num_labels == 0 ? segments.max().item<int64_t>() + 1 : num_labels;
+  const auto batch_size = labelled_imgs.size(0);
+  const int height = labelled_imgs.size(1);
+  const int width = labelled_imgs.size(2);
+  const size_t label_size = num_labels == 0 ? labelled_imgs.max().item<int64_t>() + 1 : num_labels;
   const auto neighbor_count = connectivity == 1 ? 4 : 8;
-  auto output_adj = torch::zeros({batch_size, num_labels, num_labels}, segments.options());
+  auto output_adj = torch::zeros({batch_size, num_labels, num_labels}, labelled_imgs.options());
 
   const int threads = 1024;
   const int blocks = batch_size;
 
-  AT_DISPATCH_INTEGRAL_TYPES(segments.type(), "region_adjacency_forward_cuda", ([&] {
+  AT_DISPATCH_INTEGRAL_TYPES(labelled_imgs.type(), "region_adjacency_forward_cuda", ([&] {
                                region_adjacency_cuda_forward_kernel<scalar_t>
-                                 <<<blocks, threads>>>(segments.data<int64_t>(), output_adj.data<scalar_t>(),
+                                 <<<blocks, threads>>>(labelled_imgs.data<int64_t>(), output_adj.data<scalar_t>(),
                                                        label_size, neighbor_count, height, width);
                              }));
 
