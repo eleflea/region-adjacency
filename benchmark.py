@@ -93,9 +93,9 @@ def run_cases(cases):
 
 
 def test():
-    b, h, w = 8, 224, 224
+    b, h, w = 8, 512, 512
     num_labels = 256
-    connectivity = 2
+    connectivity = 1
     segment_size = (b, h, w)
 
     labelled_imgs = generate_inputs(segment_size, num_labels)
