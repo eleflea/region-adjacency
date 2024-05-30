@@ -63,12 +63,12 @@ The following table shows the average time used by different functions.
 
 | Function                      | Device | Avg Time (ms) | Speedup |
 | ----------------------------- | ------ | ------------- | ------- |
-| `region_adjacency_numpy_loop` | CPU    | 488.11        | 1       |
-| `region_adjacency_numpy`      | CPU    | 12.01         | 40.64   |
-| `region_adjacency_torch`      | CPU    | 19.09         | 25.57   |
-| `region_adjacency_torch`      | GPU    | 23.58         | 20.70   |
-| `region_adjacency_torch_cpp`  | GPU    | 0.162         | 3013.02 |
+| `region_adjacency_numpy_loop` | CPU    | 309.36        | 1       |
+| `region_adjacency_numpy`      | CPU    | 10.03         | 30.84   |
+| `region_adjacency_torch`      | CPU    | 2.05          | 150.9   |
+| `region_adjacency_torch`      | GPU    | 7.15          | 43.27   |
+| `region_adjacency_torch_cpp`  | GPU    | 0.153         | 2022    |
 
-## license
+## License
 
 This project is licensed under the [MIT License](LICENSE).
