@@ -9,6 +9,8 @@ from region_adjacency import (
     region_adjacency_numpy_loop,
     region_adjacency_torch,
     region_adjacency_torch_cpp,
+    region_adjacency_torch_cpp_v2,
+    region_adjacency_torch_cpp_v3,
 )
 from profiler import Profiler
 
@@ -94,7 +96,7 @@ def run_cases(cases):
 
 def test():
     b, h, w = 8, 512, 512
-    num_labels = 256
+    num_labels = 512
     connectivity = 1
     segment_size = (b, h, w)
 
@@ -108,27 +110,43 @@ def test():
     )
 
     cases = [
+        # Case(
+        #     func=region_adjacency_numpy_loop,
+        #     name="numpy-loop(cpu)",
+        #     args=args_np,
+        #     times=5,
+        #     warmup=2,
+        #     primary=True,
+        # ),
+        # Case(
+        #     func=region_adjacency_numpy, name="numpy(cpu)", args=args_np, times=100, warmup=25
+        # ),
+        # Case(
+        #     func=region_adjacency_torch,
+        #     name="torch(cpu)",
+        #     args=args_torch,
+        #     times=100,
+        #     warmup=25,
+        # ),
+        # Case(
+        #     func=region_adjacency_torch,
+        #     name="torch(gpu)",
+        #     args=args_torch_cuda,
+        #     times=200,
+        #     warmup=20,
+        #     is_cuda=True,
+        # ),
         Case(
-            func=region_adjacency_numpy_loop,
-            name="numpy-loop(cpu)",
-            args=args_np,
-            times=5,
-            warmup=2,
-            primary=True,
+            func=region_adjacency_torch_cpp_v2,
+            name="torch-cpp-v2(gpu)",
+            args=args_torch_cuda,
+            times=200,
+            warmup=20,
+            is_cuda=True,
         ),
         Case(
-            func=region_adjacency_numpy, name="numpy(cpu)", args=args_np, times=100, warmup=25
-        ),
-        Case(
-            func=region_adjacency_torch,
-            name="torch(cpu)",
-            args=args_torch,
-            times=100,
-            warmup=25,
-        ),
-        Case(
-            func=region_adjacency_torch,
-            name="torch(gpu)",
+            func=region_adjacency_torch_cpp_v3,
+            name="torch-cpp-v3(gpu)",
             args=args_torch_cuda,
             times=200,
             warmup=20,
@@ -141,6 +159,7 @@ def test():
             times=200,
             warmup=20,
             is_cuda=True,
+            primary=True,
         ),
     ]
     run_cases(cases)

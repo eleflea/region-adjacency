@@ -10,6 +10,16 @@ _region_adjacency_cpp = load(
     sources=["region_adjacency_cuda.cpp", "region_adjacency_cuda_kernel.cu"],
 )
 
+_region_adjacency_cpp_v2 = load(
+    name="_region_adjacency_cpp",
+    sources=["region_adjacency_cuda.cpp", "region_adjacency_cuda_kernel_v2.cu"],
+)
+
+_region_adjacency_cpp_v3 = load(
+    name="_region_adjacency_cpp",
+    sources=["region_adjacency_cuda.cpp", "region_adjacency_cuda_kernel_v3.cu"],
+)
+
 _Tensor = torch.Tensor
 _ndarray = np.ndarray
 
@@ -191,3 +201,55 @@ def region_adjacency_torch_cpp(
         num_labels = 0
 
     return _region_adjacency_cpp.forward(labelled_imgs, num_labels, connectivity)
+
+
+def region_adjacency_torch_cpp_v2(
+    labelled_imgs: _Tensor, num_labels: Optional[int] = None, connectivity: int = 1
+) -> _Tensor:
+    """
+    Calculate the region adjacency matrices from labelled images.
+
+    Args:
+        labelled_imgs (Tensor[B, H, W]):
+            labelled images, where each pixel is assigned the integer label of the region it belongs to.
+            Where B is batch size; H and W represent height and width of the images.
+            The labels of the images should be a integer class index in the range [0, N).
+        num_labels (int, optional): The number of labels, which is equals to N.
+            If it is `None`, the number of labels will be the maximum of `labelled_imgs`. Default: None.
+        connectivity (int, optional): The connectivity between pixels in labelled images.
+            For a 2D image, a connectivity of 1 corresponds to immediate neighbors up, down, left, and right,
+            while a connectivity of 2 also includes diagonal neighbors. Default: 1.
+    Returns:
+        A Tensor(B, N, N) represents the region adjacency matrices.
+    """
+
+    if num_labels is None:
+        num_labels = 0
+
+    return _region_adjacency_cpp_v2.forward(labelled_imgs, num_labels, connectivity)
+
+
+def region_adjacency_torch_cpp_v3(
+    labelled_imgs: _Tensor, num_labels: Optional[int] = None, connectivity: int = 1
+) -> _Tensor:
+    """
+    Calculate the region adjacency matrices from labelled images.
+
+    Args:
+        labelled_imgs (Tensor[B, H, W]):
+            labelled images, where each pixel is assigned the integer label of the region it belongs to.
+            Where B is batch size; H and W represent height and width of the images.
+            The labels of the images should be a integer class index in the range [0, N).
+        num_labels (int, optional): The number of labels, which is equals to N.
+            If it is `None`, the number of labels will be the maximum of `labelled_imgs`. Default: None.
+        connectivity (int, optional): The connectivity between pixels in labelled images.
+            For a 2D image, a connectivity of 1 corresponds to immediate neighbors up, down, left, and right,
+            while a connectivity of 2 also includes diagonal neighbors. Default: 1.
+    Returns:
+        A Tensor(B, N, N) represents the region adjacency matrices.
+    """
+
+    if num_labels is None:
+        num_labels = 0
+
+    return _region_adjacency_cpp_v3.forward(labelled_imgs, num_labels, connectivity)
